@@ -51,7 +51,7 @@ def render_chat_page(multi_agent_system):
     with col1:
         user_input = st.text_input(
             "Ask a question about your data...",
-            placeholder="e.g., Show me monthly revenue trends OR Predict expenses for 2026",
+            placeholder="e.g., Show me monthly amount for category Credit.",
             label_visibility="collapsed",
             key="chat_input"
         )
