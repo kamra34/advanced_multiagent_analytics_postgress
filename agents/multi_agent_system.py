@@ -32,11 +32,12 @@ class MultiAgentSystem:
             self.forecast_agent
         )
     
-    def query(self, user_message: str) -> str:
-        """Process user query through the multi-agent system."""
+    def query(self, user_message: str) -> tuple:
+        """Process user query through the multi-agent system and return response with logs."""
         print(f"\n{'='*60}")
         print(f"👤 User: {user_message}")
         print(f"{'='*60}")
         
-        response = self.orchestrator.chat(user_message)
-        return response
+        execution_logs = []
+        response, logs = self.orchestrator.chat(user_message, execution_logs=execution_logs)
+        return response, logs

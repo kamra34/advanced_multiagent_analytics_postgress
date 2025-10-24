@@ -2,6 +2,7 @@
 # File: agents/orchestrator_agent.py
 # ============================================================================
 import json
+from datetime import datetime
 from typing import Dict, List
 from openai import OpenAI
 from .base_agent import BaseAgent
@@ -127,11 +128,11 @@ CRITICAL: For historical data, use SQL Agent. For future predictions, use Foreca
     def process_tool_call(self, tool_name: str, tool_input: Dict) -> Dict:
         if tool_name == "delegate_to_sql_agent":
             schema = self.sql_agent.get_database_schema()
-            response = self.sql_agent.chat(tool_input['task'], context=schema)
+            response, logs = self.sql_agent.chat(tool_input['task'], context=schema, execution_logs=self.execution_logs)
             return {"response": response, "agent": "SQL Agent"}
         
         elif tool_name == "delegate_to_forecast_agent":
-            response = self.forecast_agent.chat(tool_input['task'])
+            response, logs = self.forecast_agent.chat(tool_input['task'], execution_logs=self.execution_logs)
             return {"response": response, "agent": "Forecasting Agent"}
         
         elif tool_name == "delegate_to_viz_agent":
@@ -148,12 +149,90 @@ Remember to include this data in the 'data' parameter of the create_chart tool c
             except:
                 message = f"{tool_input['task']}\n\nData: {tool_input['data']}"
             
-            response = self.viz_agent.chat(message)
+            response, logs = self.viz_agent.chat(message, execution_logs=self.execution_logs)
             return {"response": response, "agent": "Visualization Agent"}
         
         elif tool_name == "delegate_to_analyst_agent":
             message = f"{tool_input['task']}\n\nData: {tool_input['data']}"
-            response = self.analyst_agent.chat(message)
+            response, logs = self.analyst_agent.chat(message, execution_logs=self.execution_logs)
             return {"response": response, "agent": "Data Analyst Agent"}
         
         return {"error": "Unknown tool"}
+    
+    def chat(self, message: str, context: str = "", execution_logs: list = None) -> tuple:
+        """Send a message and get response with execution logs."""
+        # Initialize execution logs
+        if execution_logs is None:
+            execution_logs = []
+        
+        self.execution_logs = execution_logs
+        
+        # Log orchestrator start
+        execution_logs.append({
+            "type": "orchestrator_start",
+            "message": message,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        system_message = self.role
+        
+        messages = [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": message}
+        ]
+        
+        tools = self.get_tools()
+        
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",
+            temperature=0.7
+        )
+        
+        iteration = 0
+        # Process tool calls if any
+        while response.choices[0].finish_reason == "tool_calls":
+            iteration += 1
+            messages.append(response.choices[0].message)
+            
+            for tool_call in response.choices[0].message.tool_calls:
+                tool_name = tool_call.function.name
+                tool_input = json.loads(tool_call.function.arguments)
+                
+                # Log delegation
+                agent_name = tool_name.replace("delegate_to_", "").replace("_agent", "").upper()
+                execution_logs.append({
+                    "type": "agent_delegation",
+                    "agent": agent_name,
+                    "task": tool_input.get('task', ''),
+                    "timestamp": datetime.now().isoformat()
+                })
+                
+                result = self.process_tool_call(tool_name, tool_input)
+                
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "name": tool_name,
+                    "content": self.safe_json_dumps(result)
+                })
+            
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=messages,
+                tools=tools,
+                tool_choice="auto",
+                temperature=0.7
+            )
+        
+        final_response = response.choices[0].message.content
+        
+        # Log completion
+        execution_logs.append({
+            "type": "orchestrator_complete",
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        return final_response, execution_logs
