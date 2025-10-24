@@ -12,10 +12,10 @@ def render_settings_page():
     
     with st.expander("🔐 Database Configuration", expanded=True):
         st.code(f"""
-DB_HOST={os.getenv('DB_HOST', 'Not set')}
+DB_HOST=***********
 DB_NAME=***********
 DB_USER=***********
-DB_PORT={os.getenv('DB_PORT', 'Not set')}
+DB_PORT=***********
         """)
         db_password = os.getenv('DB_PASSWORD')
         if db_password:
