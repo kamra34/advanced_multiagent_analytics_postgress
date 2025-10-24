@@ -8,32 +8,41 @@ from .base_agent import BaseAgent
 from .sql_agent import SQLAgent
 from .visualization_agent import VisualizationAgent
 from .analyst_agent import AnalystAgent
+from .forecast_agent import ForecastAgent
 
 
 class OrchestratorAgent(BaseAgent):
     """Orchestrator that coordinates between specialized agents."""
     
-    def __init__(self, client: OpenAI, sql_agent: SQLAgent, viz_agent: VisualizationAgent, analyst_agent: AnalystAgent):
+    def __init__(self, client: OpenAI, sql_agent: SQLAgent, viz_agent: VisualizationAgent, 
+                 analyst_agent: AnalystAgent, forecast_agent: ForecastAgent):
         super().__init__(
             name="Orchestrator Agent",
             role="""You are the orchestrator agent coordinating a team of specialists:
-- SQL Agent: Writes and executes database queries (use this to GET data from database)
+- SQL Agent: Writes and executes database queries for HISTORICAL data
 - Visualization Agent: Creates charts and graphs
-- Data Analyst Agent: Provides insights and analysis
+- Data Analyst Agent: Provides insights and analysis on existing data
+- Forecasting Agent: Creates PREDICTIONS and FORECASTS for FUTURE periods
 
 Your responsibilities:
-- Understand user requests and break them down into tasks
-- Delegate tasks to appropriate agents with clear instructions
-- When user asks about database content, ALWAYS delegate to SQL Agent to execute queries
-- Coordinate the workflow between agents
+- Understand user requests and identify if they need historical data OR forecasts
+- For questions about PREDICTIONS, FORECASTS, FUTURE values, or "what will happen", use Forecasting Agent
+- For questions about PAST data, CURRENT data, or analysis of EXISTING data, use SQL Agent
+- Coordinate workflow between multiple agents when needed
 - Synthesize results into coherent responses
 
-CRITICAL: For any question about database content (tables, data, records, etc.), you MUST delegate to SQL Agent who will execute the actual query.""",
+CRITICAL KEYWORDS for Forecasting Agent:
+- predict, forecast, future, projection, expected
+- "what will", "next month", "next year", "in 2026", "in 2027"
+- "prediction for", "expected cost", "future expenses"
+
+CRITICAL: For historical data, use SQL Agent. For future predictions, use Forecasting Agent.""",
             client=client
         )
         self.sql_agent = sql_agent
         self.viz_agent = viz_agent
         self.analyst_agent = analyst_agent
+        self.forecast_agent = forecast_agent
     
     def get_tools(self) -> List[Dict]:
         return [
@@ -41,13 +50,30 @@ CRITICAL: For any question about database content (tables, data, records, etc.),
                 "type": "function",
                 "function": {
                     "name": "delegate_to_sql_agent",
-                    "description": "Ask SQL Agent to execute a database query and return actual results. Use this whenever you need to retrieve data from the database.",
+                    "description": "Ask SQL Agent to execute a database query and return HISTORICAL data.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "task": {
                                 "type": "string",
-                                "description": "Clear instruction for what data to retrieve (e.g., 'Get all table names', 'Find top 10 customers by revenue')"
+                                "description": "Clear instruction for what historical data to retrieve"
+                            }
+                        },
+                        "required": ["task"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "delegate_to_forecast_agent",
+                    "description": "Ask Forecasting Agent to predict FUTURE values. Use this for any questions about predictions, forecasts, or future periods.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "task": {
+                                "type": "string",
+                                "description": "Clear instruction for what to forecast (e.g., 'Predict total expenses for 2026')"
                             }
                         },
                         "required": ["task"]
@@ -103,6 +129,10 @@ CRITICAL: For any question about database content (tables, data, records, etc.),
             schema = self.sql_agent.get_database_schema()
             response = self.sql_agent.chat(tool_input['task'], context=schema)
             return {"response": response, "agent": "SQL Agent"}
+        
+        elif tool_name == "delegate_to_forecast_agent":
+            response = self.forecast_agent.chat(tool_input['task'])
+            return {"response": response, "agent": "Forecasting Agent"}
         
         elif tool_name == "delegate_to_viz_agent":
             # Parse the data and create a clearer message

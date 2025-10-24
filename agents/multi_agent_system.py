@@ -7,6 +7,7 @@ from typing import Dict
 from .sql_agent import SQLAgent
 from .visualization_agent import VisualizationAgent
 from .analyst_agent import AnalystAgent
+from .forecast_agent import ForecastAgent
 from .orchestrator_agent import OrchestratorAgent
 
 
@@ -20,13 +21,15 @@ class MultiAgentSystem:
         self.sql_agent = SQLAgent(self.client, db_config)
         self.viz_agent = VisualizationAgent(self.client)
         self.analyst_agent = AnalystAgent(self.client)
+        self.forecast_agent = ForecastAgent(self.client, db_config)
         
         # Initialize orchestrator
         self.orchestrator = OrchestratorAgent(
             self.client,
             self.sql_agent,
             self.viz_agent,
-            self.analyst_agent
+            self.analyst_agent,
+            self.forecast_agent
         )
     
     def query(self, user_message: str) -> str:

@@ -13,6 +13,7 @@ load_dotenv()
 def main():
     """Main CLI application."""
     print("🚀 Initializing Multi-Agent PostgreSQL Analyst System...")
+    print("   With Forecasting Capabilities! 🔮")
     
     # Get configuration
     try:
@@ -33,6 +34,7 @@ def main():
     print("  - SQL Agent: Database queries and data retrieval")
     print("  - Visualization Agent: Chart creation and visual analytics")
     print("  - Data Analyst Agent: Statistical analysis and insights")
+    print("  - Forecasting Agent: Time series predictions and future forecasts 🔮")
     print("  - Orchestrator Agent: Coordinates all agents")
     
     # Example queries
@@ -49,6 +51,8 @@ def main():
     # Interactive mode
     print("\n" + "="*60)
     print("🎯 Interactive Mode - Type your queries or 'exit' to quit")
+    print("💡 Tip: Ask about future predictions using words like:")
+    print("   'predict', 'forecast', 'next year', 'in 2026', etc.")
     print("="*60)
     
     while True:
