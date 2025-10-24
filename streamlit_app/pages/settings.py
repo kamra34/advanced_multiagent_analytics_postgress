@@ -32,7 +32,7 @@ DB_PORT=***********
     
     st.divider()
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("🗑️ Clear Chat History", use_container_width=True):
             st.session_state.chat_history = []
@@ -40,6 +40,18 @@ DB_PORT=***********
             st.rerun()
     
     with col2:
+        if st.button("🧠 Clear Agent Memory", use_container_width=True):
+            # Clear conversation history from all agents
+            if st.session_state.multi_agent_system:
+                st.session_state.multi_agent_system.orchestrator.conversation_history = []
+                st.session_state.multi_agent_system.sql_agent.conversation_history = []
+                st.session_state.multi_agent_system.viz_agent.conversation_history = []
+                st.session_state.multi_agent_system.analyst_agent.conversation_history = []
+                st.session_state.multi_agent_system.forecast_agent.conversation_history = []
+                st.success("Agent memory cleared!")
+            st.rerun()
+    
+    with col3:
         if st.button("🔄 Reset Dashboard", use_container_width=True):
             st.session_state.dashboard_widgets = []
             st.success("Dashboard reset!")

@@ -176,10 +176,14 @@ Remember to include this data in the 'data' parameter of the create_chart tool c
         
         system_message = self.role
         
-        messages = [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": message}
-        ]
+        # Build messages with conversation history
+        messages = [{"role": "system", "content": system_message}]
+        
+        # Add conversation history for context
+        messages.extend(self.conversation_history)
+        
+        # Add current user message
+        messages.append({"role": "user", "content": message})
         
         tools = self.get_tools()
         
@@ -228,6 +232,14 @@ Remember to include this data in the 'data' parameter of the create_chart tool c
             )
         
         final_response = response.choices[0].message.content
+        
+        # Store conversation in history
+        self.conversation_history.append({"role": "user", "content": message})
+        self.conversation_history.append({"role": "assistant", "content": final_response})
+        
+        # Keep only last 10 exchanges (20 messages) to avoid token limits
+        if len(self.conversation_history) > 20:
+            self.conversation_history = self.conversation_history[-20:]
         
         # Log completion
         execution_logs.append({
